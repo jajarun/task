@@ -13,8 +13,11 @@ type User struct {
 	Password string
 }
 
-func (u User) GetPrimaryId() string {
-	return fmt.Sprintf("%d", u.ID)
+func (u User) GetPrimaryId() map[string]string {
+	//return fmt.Sprintf("%d", u.ID)
+	return map[string]string{
+		"ID": fmt.Sprintf("%d", u.ID),
+	}
 }
 
 func (u User) IsModelCache() bool {

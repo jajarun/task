@@ -118,3 +118,8 @@ func Save(model interface{}) {
 		cache.Del(cacheKey)
 	}
 }
+
+func AutoMigrate(model interface{}) {
+	db := getInstanceDb()
+	db.AutoMigrate(model)
+}
