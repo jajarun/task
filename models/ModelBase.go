@@ -15,7 +15,7 @@ import (
 var instanceDb *gorm.DB
 var once sync.Once
 
-func getInstanceDb() *gorm.DB {
+func GetInstanceDb() *gorm.DB {
 	once.Do(func() {
 		username := "root"  // 账号
 		password := ""      // 密码
@@ -36,13 +36,47 @@ func getInstanceDb() *gorm.DB {
 		if err != nil {
 			panic("failed to connect mysql.")
 		}
+
+		_ = db.Callback().Update().Register("gorm:updateSql", flushCache)
+		_ = db.Callback().Create().Register("gorm:insertSql", flushCache)
+		_ = db.Callback().Delete().Register("gorm:deleteSql", flushCache)
+
 		instanceDb = db
 	})
 	return instanceDb
 }
 
+func flushCache(db *gorm.DB) {
+	model := db.Statement.Model.(ModelInterface)
+	primaryValue := getPrimaryId(model)
+
+	cache := getCache()
+	cacheKey := getCacheKey(model, primaryValue)
+	fmt.Println("delete cache key:" + cacheKey)
+	cache.Del(cacheKey)
+}
+
+func getPrimaryId(model ModelInterface) string {
+	fmt.Println(model)
+	primaryKey := model.getPrimaryKey()
+	primaryValue := ""
+	r := reflect.ValueOf(model).Elem().FieldByName(primaryKey)
+	kType := r.Kind().String()
+	switch kType {
+	case "string":
+		primaryValue = r.String()
+		break
+	case "int":
+	case "uint":
+		primaryValue = fmt.Sprintf("%d", r.Uint())
+		break
+	default:
+		panic("primary type error")
+	}
+	return primaryValue
+}
+
 type ModelInterface interface {
-	getPrimaryId() string
 	getPrimaryKey() string   //获取主键名
 	isModelCache() bool      //是否开启缓存
 	getRevisionClue() string //
@@ -51,19 +85,15 @@ type ModelInterface interface {
 type ModelBase struct {
 }
 
-func (mb ModelBase) getPrimaryId() string {
-	return ""
-}
-
-func (mb ModelBase) getPrimaryKey() string {
+func (mb *ModelBase) getPrimaryKey() string {
 	return "ID"
 }
 
-func (mb ModelBase) isModelCache() bool {
+func (mb *ModelBase) isModelCache() bool {
 	return false
 }
 
-func (mb ModelBase) getRevisionClue() string {
+func (mb *ModelBase) getRevisionClue() string {
 	return ""
 }
 
@@ -84,12 +114,12 @@ func getCacheKey(model ModelInterface, cond interface{}) string {
 }
 
 func FindFirst(model ModelInterface, conds ...interface{}) {
-	db := getInstanceDb()
+	db := GetInstanceDb()
 	db.First(model, conds)
 }
 
 func Create(model ModelInterface) {
-	db := getInstanceDb()
+	db := GetInstanceDb()
 	db.Create(model)
 }
 
@@ -118,26 +148,14 @@ func FindByPrimaryKey(model ModelInterface, primaryKey string) {
 		fmt.Println("get data from db no cache")
 		FindFirst(model, primaryKey)
 	}
-
 }
 
 func Save(model ModelInterface) {
-	db := getInstanceDb()
+	db := GetInstanceDb()
 	db.Save(model)
-
-	//清除缓存
-	primaryKey := model.getPrimaryId()
-	cache := getCache()
-	cacheKey := getCacheKey(model, primaryKey)
-	fmt.Println("delete cache key:" + cacheKey)
-	cache.Del(cacheKey)
 }
 
 func AutoMigrate(model interface{}) {
-	db := getInstanceDb()
+	db := GetInstanceDb()
 	db.AutoMigrate(model)
-}
-
-func GetInstanceDb() *gorm.DB {
-	return getInstanceDb()
 }
