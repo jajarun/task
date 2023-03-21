@@ -3,6 +3,7 @@ package tasks
 import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"task/models"
 	"task/redisClient"
 	"time"
 )
@@ -13,7 +14,15 @@ func HandleQueue(taskQueue string, method func(item interface{})) {
 
 	var popNum = 0
 	var taskNum = 2 //默认2个进程  根据 waitNum 动态调整
-	pool, _ := ants.NewPoolWithFunc(taskNum, method)
+	pool, _ := ants.NewPoolWithFunc(taskNum, func(i interface{}) {
+		defer func() {
+			if err := recover(); err != nil {
+				models.CloseDb()
+			}
+		}()
+		defer models.CloseDb()
+		method(i)
+	})
 	for {
 		res, err := redisCon.RPop(taskQueue).Result()
 		if err != nil {

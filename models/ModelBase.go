@@ -7,16 +7,33 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"reflect"
-	"sync"
+	"runtime"
 	"task/redisClient"
 	"time"
 )
 
-var instanceDb *gorm.DB
-var once sync.Once
+//var instanceDb *gorm.DB
+//var once sync.Once
+
+//type dbInstance struct {
+//	instanceDb *gorm.DB
+//	once       *sync.Once
+//}
+
+var dbMap = make(map[int64]*gorm.DB)
+
+func getGoroutineID() int64 {
+	buf := make([]byte, 64)
+	runtime.Stack(buf, false)
+	var id int64
+	fmt.Sscanf(string(buf), "goroutine %d ", &id)
+	return id
+}
 
 func getInstanceDb() *gorm.DB {
-	once.Do(func() {
+	gID := getGoroutineID()
+	_, ok := dbMap[gID]
+	if !ok {
 		username := "root"  // 账号
 		password := ""      // 密码
 		host := "127.0.0.1" // 地址
@@ -25,31 +42,58 @@ func getInstanceDb() *gorm.DB {
 		timeout := "10s"    // 连接超时，10秒
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local&timeout=%s", username, password, host, port, DBname, timeout)
 		// Open 连接
-		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-		fmt.Println("connect db success")
+		//db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+			//NamingStrategy: schema.NamingStrategy{
+			//	TablePrefix:   "gormv2_",	//表名前缀
+			//	SingularTable: true,		//表名禁用复数
+			//},
+			//Logger: logger.Default.LogMode(logger.Silent),
+		})
+		fmt.Printf("connect db [%d] success\n", gID)
 		if err != nil {
 			panic("failed to connect mysql.")
 		}
-		instanceDb = db
-	})
-	return instanceDb
+		dbMap[gID] = db
+	} else {
+		fmt.Printf("connect db [%d] success from instance\n", gID)
+	}
+	return dbMap[gID]
+}
+
+func CloseDb() {
+	gID := getGoroutineID()
+	fmt.Printf("start close db [%d]\n", gID)
+	_, ok := dbMap[gID]
+	if ok {
+		delete(dbMap, gID)
+		fmt.Printf("close db [%d] success from instance\n", gID)
+	}
+}
+
+type ModelInterface interface {
+	getPrimaryId() string
+	getPrimaryKey() string   //获取主键名
+	isModelCache() bool      //是否开启缓存
+	getRevisionClue() string //
 }
 
 type ModelBase struct {
-	primaryKey   interface{}
-	modelCache   bool
-	revisionClue string
 }
 
-func (u ModelBase) GetPrimaryId() string {
-	return "0"
+func (mb ModelBase) getPrimaryId() string {
+	return ""
 }
 
-func (u ModelBase) IsModelCache() bool {
+func (mb ModelBase) getPrimaryKey() string {
+	return "ID"
+}
+
+func (mb ModelBase) isModelCache() bool {
 	return false
 }
 
-func (u ModelBase) GetRevisionClue() string {
+func (mb ModelBase) getRevisionClue() string {
 	return ""
 }
 
@@ -57,25 +101,30 @@ func getCache() *redis.Client {
 	return redisClient.GetInstanceRedis()
 }
 
-func getCacheKey(model interface{}, key string) string {
-	t := reflect.TypeOf(model)
-	return t.Elem().Name() + "-" + key
+func getCacheKey(model ModelInterface, cond interface{}) string {
+	modelName := reflect.TypeOf(model).Elem().Name()
+	switch cond.(type) {
+	case int:
+		return fmt.Sprintf("%s-%d", modelName, cond.(int))
+	case string:
+		return fmt.Sprintf("%s-%s", modelName, cond.(string))
+	default:
+		panic("condition err")
+	}
 }
 
-func FindFirst(model interface{}, conds ...interface{}) {
+func FindFirst(model ModelInterface, conds ...interface{}) {
 	db := getInstanceDb()
 	db.First(model, conds)
 }
 
-func FindByPrimaryKey(model interface{}, primaryKey string) {
-	t := reflect.ValueOf(model)
-	method := t.MethodByName("IsModelCache")
-	isModelCache := false
-	if method.IsValid() {
-		returnArr := method.Call(nil)
-		isModelCache = returnArr[0].Bool()
-		fmt.Println("is cache:", returnArr[0].Bool())
-	}
+func Create(model ModelInterface) {
+	db := getInstanceDb()
+	db.Create(model)
+}
+
+func FindByPrimaryKey(model ModelInterface, primaryKey string) {
+	isModelCache := model.isModelCache()
 	if isModelCache {
 		cache := getCache()
 		cacheKey := getCacheKey(model, primaryKey)
@@ -102,24 +151,23 @@ func FindByPrimaryKey(model interface{}, primaryKey string) {
 
 }
 
-func Save(model interface{}) {
+func Save(model ModelInterface) {
 	db := getInstanceDb()
 	db.Save(model)
 
 	//清除缓存
-	t := reflect.ValueOf(model)
-	method := t.MethodByName("GetPrimaryId")
-	if method.IsValid() {
-		returnArr := method.Call(nil)
-		primaryKey := returnArr[0].String()
-		cache := getCache()
-		cacheKey := getCacheKey(model, primaryKey)
-		fmt.Println("delete cache key:" + cacheKey)
-		cache.Del(cacheKey)
-	}
+	primaryKey := model.getPrimaryId()
+	cache := getCache()
+	cacheKey := getCacheKey(model, primaryKey)
+	fmt.Println("delete cache key:" + cacheKey)
+	cache.Del(cacheKey)
 }
 
 func AutoMigrate(model interface{}) {
 	db := getInstanceDb()
 	db.AutoMigrate(model)
+}
+
+func GetInstanceDb() *gorm.DB {
+	return getInstanceDb()
 }

@@ -1,41 +1,36 @@
 package main
 
 import (
-	"fmt"
+	"strconv"
+	"task/models"
 	"task/tasks"
-	"time"
 )
 
 func main() {
-	//user := models.User{}
-	////
-	////models.FindFirst(&user, 2)
-	////fmt.Printf("data:%v \n", user.UserName)
-	//models.FindByPrimaryKey(&user, "2")
-	//
-	//user.Password = "jaja1234567"
-	//models.Save(&user)
-	////fmt.Println("user data:", user)
-	//models.FindByPrimaryKey(&user, "2")
-
-	//user.Password = "45678"
-	//order := models.Order{}
-	//models.AutoMigrate(&order)
-
-	//for i := 1; i <= 5; i++ {
-	//	go func(index int) {
-	//		dbClient := db.GetInstanceDb()
-	//		user := models.User{}
-	//		dbClient.First(&user, index)
-	//		fmt.Printf("index %d name %s \n", index, user.UserName)
-	//	}(i)
+	//user := models.User{
+	//	UserName: "李四",
+	//	Password: "2423412",
 	//}
-	//time.Sleep(time.Second * 5)
+	//models.Create(&user)
+	//
+	//redis := redisClient.GetInstanceRedis()
+	//redis.LPush("test:queue", 6)
+	//redis.LPush("test:queue", 7)
 
-	tasks.HandleQueue("go:test:queue:task", func(item interface{}) {
-		fmt.Println("start do item:", item)
-		time.Sleep(3 * time.Second)
-		fmt.Println("end do item:", item)
+	tasks.HandleQueue("test:queue", func(item interface{}) {
+		var id int
+		switch item.(type) {
+		case int:
+			id = item.(int)
+			break
+		case string:
+			id, _ = strconv.Atoi(item.(string))
+			break
+		default:
+			panic("err item")
+		}
+		user := models.User{}
+		models.FindFirst(&user, id)
+		models.FindFirst(&user, id)
 	})
-
 }
