@@ -7,33 +7,16 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"reflect"
-	"runtime"
+	"sync"
 	"task/redisClient"
 	"time"
 )
 
-//var instanceDb *gorm.DB
-//var once sync.Once
-
-//type dbInstance struct {
-//	instanceDb *gorm.DB
-//	once       *sync.Once
-//}
-
-var dbMap = make(map[int64]*gorm.DB)
-
-func getGoroutineID() int64 {
-	buf := make([]byte, 64)
-	runtime.Stack(buf, false)
-	var id int64
-	fmt.Sscanf(string(buf), "goroutine %d ", &id)
-	return id
-}
+var instanceDb *gorm.DB
+var once sync.Once
 
 func getInstanceDb() *gorm.DB {
-	gID := getGoroutineID()
-	_, ok := dbMap[gID]
-	if !ok {
+	once.Do(func() {
 		username := "root"  // 账号
 		password := ""      // 密码
 		host := "127.0.0.1" // 地址
@@ -50,25 +33,12 @@ func getInstanceDb() *gorm.DB {
 			//},
 			//Logger: logger.Default.LogMode(logger.Silent),
 		})
-		fmt.Printf("connect db [%d] success\n", gID)
 		if err != nil {
 			panic("failed to connect mysql.")
 		}
-		dbMap[gID] = db
-	} else {
-		fmt.Printf("connect db [%d] success from instance\n", gID)
-	}
-	return dbMap[gID]
-}
-
-func CloseDb() {
-	gID := getGoroutineID()
-	fmt.Printf("start close db [%d]\n", gID)
-	_, ok := dbMap[gID]
-	if ok {
-		delete(dbMap, gID)
-		fmt.Printf("close db [%d] success from instance\n", gID)
-	}
+		instanceDb = db
+	})
+	return instanceDb
 }
 
 type ModelInterface interface {
