@@ -47,13 +47,38 @@ func GetInstanceDb() *gorm.DB {
 }
 
 func flushCache(db *gorm.DB) {
-	model := db.Statement.Model.(ModelInterface)
-	primaryValue := getPrimaryId(model)
+	//fmt.Printf("models %v \n", db.Statement.Model)
+	//return
 
-	cache := getCache()
-	cacheKey := getCacheKey(model, primaryValue)
-	fmt.Println("delete cache key:" + cacheKey)
-	cache.Del(cacheKey)
+	var models []interface{}
+	switch db.Statement.Model.(type) {
+	case []interface{}:
+		models = db.Statement.Model.([]interface{})
+		break
+	case interface{}:
+		models = []interface{}{db.Statement.Model.(interface{})}
+		break
+	default:
+		panic("err ty")
+	}
+	for _, value := range models {
+		model := value.(ModelInterface)
+		primaryValue := getPrimaryId(model)
+
+		cache := getCache()
+		cacheKey := getCacheKey(model, primaryValue)
+		fmt.Println("delete cache key:" + cacheKey)
+		cache.Del(cacheKey)
+	}
+	//fmt.Println("delete cache key:" + cacheKey)
+
+	//model := db.Statement.Model.(ModelInterface)
+	//primaryValue := getPrimaryId(model)
+	//
+	//cache := getCache()
+	//cacheKey := getCacheKey(model, primaryValue)
+	//fmt.Println("delete cache key:" + cacheKey)
+	//cache.Del(cacheKey)
 }
 
 func getPrimaryId(model ModelInterface) string {
@@ -118,7 +143,11 @@ func FindFirst(model ModelInterface, conds ...interface{}) {
 	db.First(model, conds)
 }
 
-func Create(model ModelInterface) {
+func FindFirstViaCache(model ModelInterface, conds interface{}, revisionClue string) {
+
+}
+
+func Create(model interface{}) {
 	db := GetInstanceDb()
 	db.Create(model)
 }

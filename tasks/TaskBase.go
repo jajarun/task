@@ -3,9 +3,57 @@ package tasks
 import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
+	"sync"
 	"task/redisClient"
 	"time"
 )
+
+func HandleQueueTimed(taskQueue string, method func(item interface{})) {
+	var channelQueue = make(chan string, 100)
+	redisCon := redisClient.GetInstanceRedis()
+	queueNum, _ := redisCon.LLen(taskQueue).Result()
+	newTaskNum := 2
+	if queueNum < 10 {
+		newTaskNum = 2
+	} else if queueNum >= 10 && queueNum < 50 {
+		newTaskNum = 5
+	} else {
+		newTaskNum = 10
+	}
+	fmt.Printf("master task start task num:%d \n", newTaskNum)
+	newTaskNum += 1 //还需要开启一个线程用于写入通道
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(newTaskNum)
+	go func(chan string) {
+		defer waitGroup.Done()
+		for {
+			item, _ := redisCon.RPop(taskQueue).Result()
+			if item == "" {
+				fmt.Println("pop result nil")
+				break
+			}
+			fmt.Println("pop result:", item)
+			channelQueue <- item
+		}
+		close(channelQueue)
+	}(channelQueue)
+
+	for i := 1; i < newTaskNum; i++ {
+		go func(chan string) {
+			defer waitGroup.Done()
+			for {
+				item, ok := <-channelQueue
+				if !ok {
+					break
+				}
+				fmt.Println("sub task get result:", item)
+				method(item)
+			}
+		}(channelQueue)
+	}
+	waitGroup.Wait()
+	fmt.Println("master task end")
+}
 
 func HandleQueue(taskQueue string, method func(item interface{})) {
 	var redisCon = redisClient.GetInstanceRedis()
