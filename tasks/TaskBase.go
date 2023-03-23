@@ -8,10 +8,7 @@ import (
 	"time"
 )
 
-func HandleQueueTimed(taskQueue string, method func(item interface{})) {
-	var channelQueue = make(chan string, 100)
-	redisCon := redisClient.GetInstanceRedis()
-	queueNum, _ := redisCon.LLen(taskQueue).Result()
+func getTaskNum(queueNum int) int {
 	newTaskNum := 2
 	if queueNum < 10 {
 		newTaskNum = 2
@@ -20,6 +17,14 @@ func HandleQueueTimed(taskQueue string, method func(item interface{})) {
 	} else {
 		newTaskNum = 10
 	}
+	return newTaskNum
+}
+
+func HandleQueueTimed(taskQueue string, method func(item interface{})) {
+	var channelQueue = make(chan string, 50)
+	redisCon := redisClient.GetInstanceRedis()
+	queueNum, _ := redisCon.LLen(taskQueue).Result()
+	newTaskNum := getTaskNum(int(queueNum))
 	fmt.Printf("master task start task num:%d \n", newTaskNum)
 	newTaskNum += 1 //还需要开启一个线程用于写入通道
 	waitGroup := sync.WaitGroup{}
@@ -78,14 +83,7 @@ func HandleQueue(taskQueue string, method func(item interface{})) {
 
 		if popNum > 10 { //每pop 10个任务 查看一次任务队列排队数量  按排队数量动态控制协程数量
 			waitNum, _ := redisCon.LLen(taskQueue).Result()
-			newTaskNum := 2
-			if waitNum < 10 {
-				newTaskNum = 2
-			} else if waitNum >= 10 && waitNum < 50 {
-				newTaskNum = 5
-			} else {
-				newTaskNum = 10
-			}
+			newTaskNum := getTaskNum(int(waitNum))
 			if newTaskNum != taskNum {
 				fmt.Printf("change task num from %d to %d\n", taskNum, newTaskNum)
 				pool.Tune(newTaskNum)
