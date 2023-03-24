@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-redis/redis"
-	"task/redisClient"
-	"task/tasks"
-	"time"
+	"task/ws"
 )
 
 func printRedisPool(stats *redis.PoolStats) {
@@ -35,13 +33,5 @@ func printRedisOption(opt *redis.Options) {
 }
 
 func main() {
-	redisCon := redisClient.GetInstanceRedis()
-	for i := 0; i < 100; i++ {
-		redisCon.LPush("test:task", i)
-	}
-
-	tasks.HandleQueueTimed("test:task", func(item interface{}) {
-		fmt.Println("method process:", item)
-		time.Sleep(time.Second)
-	})
+	ws.Run()
 }
