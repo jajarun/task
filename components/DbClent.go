@@ -1,4 +1,4 @@
-package db
+package components
 
 import (
 	"fmt"
@@ -8,10 +8,10 @@ import (
 )
 
 var instanceDb *gorm.DB
-var once sync.Once
+var onceDb sync.Once
 
 func GetInstanceDb() *gorm.DB {
-	once.Do(func() {
+	onceDb.Do(func() {
 		username := "root"  // 账号
 		password := ""      // 密码
 		host := "127.0.0.1" // 地址

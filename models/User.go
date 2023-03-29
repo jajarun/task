@@ -5,13 +5,21 @@ type User struct {
 
 	ID         uint `gorm:"primarykey"`
 	UserName   string
+	Mobile     string
 	Password   string
 	CreateTime uint `gorm:"autoCreateTime"`
 	UpdateTime uint `gorm:"autoUpdateTime"`
 }
 
 func (u User) isModelCache() bool {
-	return true
+	return false
+}
+
+func FindUserByMobile(mobile string) User {
+	user := User{}
+	db := GetInstanceDb()
+	db.Where("mobile = ?", mobile).First(&user)
+	return user
 }
 
 //

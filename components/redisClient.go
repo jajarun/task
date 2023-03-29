@@ -1,4 +1,4 @@
-package redisClient
+package components
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 )
 
 var instanceRedis *redis.Client
-var once sync.Once
+var onceRedis sync.Once
 
 func GetInstanceRedis() *redis.Client {
-	once.Do(func() {
+	onceRedis.Do(func() {
 		redisCon := redis.NewClient(&redis.Options{
 			Addr: "127.0.0.1:6379",
 		})

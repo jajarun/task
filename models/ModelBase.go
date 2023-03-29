@@ -8,15 +8,15 @@ import (
 	"gorm.io/gorm"
 	"reflect"
 	"sync"
-	"task/redisClient"
+	"task/components"
 	"time"
 )
 
 var instanceDb *gorm.DB
-var once sync.Once
+var onceDb sync.Once
 
 func GetInstanceDb() *gorm.DB {
-	once.Do(func() {
+	onceDb.Do(func() {
 		username := "root"  // 账号
 		password := ""      // 密码
 		host := "127.0.0.1" // 地址
@@ -25,30 +25,45 @@ func GetInstanceDb() *gorm.DB {
 		timeout := "10s"    // 连接超时，10秒
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8&parseTime=True&loc=Local&timeout=%s", username, password, host, port, DBname, timeout)
 		// Open 连接
-		//db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-			//NamingStrategy: schema.NamingStrategy{
-			//	TablePrefix:   "gormv2_",	//表名前缀
-			//	SingularTable: true,		//表名禁用复数
-			//},
-			//Logger: logger.Default.LogMode(logger.Silent),
-		})
+		db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		fmt.Println("connect db success")
 		if err != nil {
 			panic("failed to connect mysql.")
 		}
-
-		_ = db.Callback().Update().Register("gorm:updateSql", flushCache)
-		_ = db.Callback().Create().Register("gorm:insertSql", flushCache)
-		_ = db.Callback().Delete().Register("gorm:deleteSql", flushCache)
-
+		//_ = db.Callback().Query().Register("after_query", AfterQuery)
+		//_ = db.Callback().Update().Register("after_save", AfterSave)
+		//_ = db.Callback().Create().Register("after_create", AfterCreate)
+		//_ = db.Callback().Delete().Register("after_delete", AfterDelete)
 		instanceDb = db
 	})
 	return instanceDb
 }
 
+func AfterQuery(db *gorm.DB) {
+
+}
+
+func flushSingleModel(model ModelInterface) {
+
+}
+
+func AfterCreate(db *gorm.DB) {
+	fmt.Println("after create")
+}
+
+func AfterSave(db *gorm.DB) {
+	fmt.Println("after save")
+	flushCache(db)
+}
+
+func AfterDelete(db *gorm.DB) {
+	fmt.Println("after delete")
+	flushCache(db)
+}
+
 func flushCache(db *gorm.DB) {
-	//fmt.Printf("models %v \n", db.Statement.Model)
-	//return
+	fmt.Printf("models %v \n", db.Statement.Model)
+	return
 
 	var models []interface{}
 	switch db.Statement.Model.(type) {
@@ -123,7 +138,7 @@ func (mb *ModelBase) getRevisionClue() string {
 }
 
 func getCache() *redis.Client {
-	return redisClient.GetInstanceRedis()
+	return components.GetInstanceRedis()
 }
 
 func getCacheKey(model ModelInterface, cond interface{}) string {
@@ -150,6 +165,11 @@ func FindFirstViaCache(model ModelInterface, conds interface{}, revisionClue str
 func Create(model interface{}) {
 	db := GetInstanceDb()
 	db.Create(model)
+}
+
+func Find(models interface{}, conds ...interface{}) {
+	db := GetInstanceDb()
+	db.Find(models, conds)
 }
 
 func FindByPrimaryKey(model ModelInterface, primaryKey string) {
