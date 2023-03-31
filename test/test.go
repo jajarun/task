@@ -39,7 +39,7 @@ func test(t interface{}) {
 	}
 }
 
-func main() {
+func test1() {
 	//users := []user{{Name: "111"}, {Name: "222"}}
 	//test(&users)
 	user := models.User{}
