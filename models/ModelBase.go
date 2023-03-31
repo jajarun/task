@@ -30,90 +30,21 @@ func GetInstanceDb() *gorm.DB {
 		if err != nil {
 			panic("failed to connect mysql.")
 		}
-		//_ = db.Callback().Query().Register("after_query", AfterQuery)
-		//_ = db.Callback().Update().Register("after_save", AfterSave)
-		//_ = db.Callback().Create().Register("after_create", AfterCreate)
-		//_ = db.Callback().Delete().Register("after_delete", AfterDelete)
 		instanceDb = db
 	})
 	return instanceDb
 }
 
-func AfterQuery(db *gorm.DB) {
-
-}
-
-func flushSingleModel(model ModelInterface) {
-
-}
-
-func AfterCreate(db *gorm.DB) {
-	fmt.Println("after create")
-}
-
-func AfterSave(db *gorm.DB) {
-	fmt.Println("after save")
-	flushCache(db)
-}
-
-func AfterDelete(db *gorm.DB) {
-	fmt.Println("after delete")
-	flushCache(db)
-}
-
-func flushCache(db *gorm.DB) {
-	fmt.Printf("models %v \n", db.Statement.Model)
-	return
-
-	var models []interface{}
-	switch db.Statement.Model.(type) {
-	case []interface{}:
-		models = db.Statement.Model.([]interface{})
-		break
-	case interface{}:
-		models = []interface{}{db.Statement.Model.(interface{})}
-		break
-	default:
-		panic("err ty")
-	}
-	for _, value := range models {
-		model := value.(ModelInterface)
-		primaryValue := getPrimaryId(model)
-
-		cache := getCache()
-		cacheKey := getCacheKey(model, primaryValue)
-		fmt.Println("delete cache key:" + cacheKey)
-		cache.Del(cacheKey)
-	}
-	//fmt.Println("delete cache key:" + cacheKey)
-
-	//model := db.Statement.Model.(ModelInterface)
-	//primaryValue := getPrimaryId(model)
-	//
-	//cache := getCache()
-	//cacheKey := getCacheKey(model, primaryValue)
-	//fmt.Println("delete cache key:" + cacheKey)
-	//cache.Del(cacheKey)
-}
-
-func getPrimaryId(model ModelInterface) string {
-	fmt.Println(model)
+func FlushCache(model ModelInterface) {
 	primaryKey := model.getPrimaryKey()
-	primaryValue := ""
-	r := reflect.ValueOf(model).Elem().FieldByName(primaryKey)
-	kType := r.Kind().String()
-	switch kType {
-	case "string":
-		primaryValue = r.String()
-		break
-	case "int":
-	case "uint":
-		primaryValue = fmt.Sprintf("%d", r.Uint())
-		break
-	default:
-		panic("primary type error")
-	}
-	return primaryValue
+	b, _ := json.Marshal(model)
+	data := make(map[string]interface{})
+	_ = json.Unmarshal(b, &data)
+	primaryValue := data[primaryKey]
+	cache := getCache()
+	cacheKey := getCacheKey(model, primaryValue)
+	fmt.Println("delete cache key:" + cacheKey)
+	cache.Del(cacheKey)
 }
 
 type ModelInterface interface {
@@ -144,11 +75,14 @@ func getCache() *redis.Client {
 func getCacheKey(model ModelInterface, cond interface{}) string {
 	modelName := reflect.TypeOf(model).Elem().Name()
 	switch cond.(type) {
-	case int:
+	case int, int32, int64, uint:
 		return fmt.Sprintf("%s-%d", modelName, cond.(int))
+	case float64:
+		return fmt.Sprintf("%s-%d", modelName, int(cond.(float64)))
 	case string:
 		return fmt.Sprintf("%s-%s", modelName, cond.(string))
 	default:
+		fmt.Println(reflect.TypeOf(cond))
 		panic("condition err")
 	}
 }

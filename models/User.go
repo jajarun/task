@@ -11,7 +11,12 @@ type User struct {
 	UpdateTime uint `gorm:"autoUpdateTime"`
 }
 
-func (u User) isModelCache() bool {
+//func (u *User) AfterSave(tx *gorm.DB) (err error) {
+//	FlushCache(u)
+//	return nil
+//}
+
+func (u *User) isModelCache() bool {
 	return false
 }
 
@@ -22,7 +27,6 @@ func FindUserByMobile(mobile string) User {
 	return user
 }
 
-//
-//func (u User) getRevisionClue() string {
-//	return "user_id"
-//}
+func (u *User) getRevisionClue() string {
+	return "user_id"
+}

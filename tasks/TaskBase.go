@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/panjf2000/ants/v2"
 	"sync"
-	"task/redisClient"
+	"task/components"
 	"time"
 )
 
@@ -22,7 +22,7 @@ func getTaskNum(queueNum int) int {
 
 func HandleQueueTimed(taskQueue string, method func(item interface{})) {
 	var channelQueue = make(chan string, 50)
-	redisCon := redisClient.GetInstanceRedis()
+	redisCon := components.GetInstanceRedis()
 	queueNum, _ := redisCon.LLen(taskQueue).Result()
 	newTaskNum := getTaskNum(int(queueNum))
 	fmt.Printf("master task start task num:%d \n", newTaskNum)
@@ -61,7 +61,7 @@ func HandleQueueTimed(taskQueue string, method func(item interface{})) {
 }
 
 func HandleQueue(taskQueue string, method func(item interface{})) {
-	var redisCon = redisClient.GetInstanceRedis()
+	var redisCon = components.GetInstanceRedis()
 	defer redisCon.Close()
 
 	var popNum = 0
@@ -73,8 +73,8 @@ func HandleQueue(taskQueue string, method func(item interface{})) {
 			//fmt.Println("pop err:", err)
 		}
 		if res == "" {
-			fmt.Println("pop result nil")
-			time.Sleep(3 * time.Second)
+			//fmt.Println("pop result nil")
+			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 		//fmt.Println("pop result :", res)
