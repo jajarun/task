@@ -38,7 +38,9 @@ func WebRouteInit() {
 
 		handle, ok := routeHandles[path]
 		if !ok {
+			fmt.Println(path, ok)
 			_, _ = io.WriteString(w, "404")
+			return
 		}
 		controllerHandle := base.ControllerHandle{
 			W:    w,
@@ -46,11 +48,13 @@ func WebRouteInit() {
 			Path: path,
 			//HandleFunc: handle
 		}
-		err := controllerHandle.Init()
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			handle(&controllerHandle)
-		}
+		//err := controllerHandle.Init()
+		//if err != nil {
+		//	fmt.Println(err)
+		//} else {
+		handle(&controllerHandle)
+		//fmt.Println(handle)
+		//index.Index(&controllerHandle)
+		//}
 	})
 }

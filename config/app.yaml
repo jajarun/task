@@ -1,13 +1,13 @@
 mysql:
   username: "root"
-  password: ""
+  password: "123456"
   host: "127.0.0.1"
-  port: 3306
+  port: 3307
   DBname: "test"
 
 
 redis:
-  addr: "localhost:6379"
+  addr: "localhost:6380"
   password: ""
   DB: 0
   poolSize: 30

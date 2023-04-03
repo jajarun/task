@@ -20,14 +20,14 @@ type ControllerHandle struct {
 }
 
 type responseData struct {
-	ErrorCode int
-	Message   string
-	Data      interface{}
+	ErrorCode int         `json:"error_code"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data"`
 }
 
-func (c *ControllerHandle) Init() error {
-	return nil
-}
+//func (c *ControllerHandle) Init() error {
+//	return nil
+//}
 
 func (c *ControllerHandle) GetQuery(key string, defaultValue ...string) string {
 	query := c.R.URL.Query()

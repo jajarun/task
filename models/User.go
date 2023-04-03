@@ -3,12 +3,12 @@ package models
 type User struct {
 	ModelBase
 
-	ID         uint `gorm:"primarykey"`
-	UserName   string
-	Mobile     string
-	Password   string
-	CreateTime uint `gorm:"autoCreateTime"`
-	UpdateTime uint `gorm:"autoUpdateTime"`
+	ID         uint   `gorm:"primarykey" json:"id"`
+	UserName   string `json:"userName"`
+	Mobile     string `json:"mobile"`
+	Password   string `json:"password"`
+	CreateTime uint   `gorm:"autoCreateTime" json:"createTime"`
+	UpdateTime uint   `gorm:"autoUpdateTime" json:"updateTime"`
 }
 
 //func (u *User) AfterSave(tx *gorm.DB) (err error) {
