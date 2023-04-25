@@ -30,14 +30,33 @@ func GetInstanceDb() *gorm.DB {
 		if err != nil {
 			panic(err)
 		}
+		_ = db.Callback().Update().Register("after:update", afterSave)
+		_ = db.Callback().Delete().Register("after:delete", afterSave)
+		//_ = db.Callback().Create().Register("after:create", afterSave)
 		fmt.Println("connect db success")
 		instanceDb = db
 	})
 	return instanceDb
 }
 
+func afterSave(db *gorm.DB) {
+	models := db.Statement.Model
+	rm := reflect.ValueOf(models).Elem()
+	if rm.Kind() == reflect.Slice || rm.Kind() == reflect.Array {
+		length := rm.Len()
+		for i := 0; i < length; i++ {
+			model := rm.Index(i)
+			m := model.Addr().Interface().(ModelInterface)
+			FlushCache(m)
+		}
+	} else {
+		m := rm.Addr().Interface().(ModelInterface)
+		FlushCache(m)
+	}
+}
+
 func FlushCache(model ModelInterface) {
-	primaryKey := model.getPrimaryKey()
+	primaryKey := model.GetPrimaryKey()
 	b, _ := json.Marshal(model)
 	data := make(map[string]interface{})
 	_ = json.Unmarshal(b, &data)
@@ -49,23 +68,23 @@ func FlushCache(model ModelInterface) {
 }
 
 type ModelInterface interface {
-	getPrimaryKey() string   //获取主键名
-	isModelCache() bool      //是否开启缓存
-	getRevisionClue() string //
+	GetPrimaryKey() string   //获取主键名
+	IsModelCache() bool      //是否开启缓存
+	GetRevisionClue() string //
 }
 
 type ModelBase struct {
 }
 
-func (mb *ModelBase) getPrimaryKey() string {
+func (mb *ModelBase) GetPrimaryKey() string {
 	return "ID"
 }
 
-func (mb *ModelBase) isModelCache() bool {
+func (mb *ModelBase) IsModelCache() bool {
 	return false
 }
 
-func (mb *ModelBase) getRevisionClue() string {
+func (mb *ModelBase) GetRevisionClue() string {
 	return ""
 }
 
@@ -74,7 +93,12 @@ func getCache() *redis.Client {
 }
 
 func getCacheKey(model ModelInterface, cond interface{}) string {
-	modelName := reflect.TypeOf(model).Elem().Name()
+	modelName := ""
+	if reflect.TypeOf(model).Kind() == reflect.Ptr {
+		modelName = reflect.TypeOf(model).Elem().Name()
+	} else {
+		modelName = reflect.TypeOf(model).Name()
+	}
 	switch cond.(type) {
 	case int, int32, int64, uint:
 		return fmt.Sprintf("%s-%d", modelName, cond.(int))
@@ -108,7 +132,7 @@ func Find(models interface{}, conds ...interface{}) {
 }
 
 func FindByPrimaryKey(model ModelInterface, primaryKey string) {
-	isModelCache := model.isModelCache()
+	isModelCache := model.IsModelCache()
 	if isModelCache {
 		cache := getCache()
 		cacheKey := getCacheKey(model, primaryKey)

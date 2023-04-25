@@ -57,29 +57,36 @@ func pushProcessMsg(message Message) {
 type ClientManager struct {
 	userConns    map[string]*websocket.Conn
 	messageQueue chan Message
-	lock         sync.Mutex
+	lock         sync.RWMutex
+}
+
+func (cm *ClientManager) getUserCon(userId string) (*websocket.Conn, bool) {
+	cm.lock.RLock()
+	defer cm.lock.RUnlock()
+	conn, ok := cm.userConns[userId]
+	return conn, ok
 }
 
 func (cm *ClientManager) login(clientMsg *ClientMsg) {
 	cm.lock.Lock()
+	defer cm.lock.Unlock()
 	_, ok := cm.userConns[clientMsg.UserId]
 	if !ok {
 		cm.userConns[clientMsg.UserId] = clientMsg.Conn
 	}
-	cm.lock.Unlock()
 }
 
 func (cm *ClientManager) logout(clientMsg *ClientMsg) {
 	cm.lock.Lock()
+	defer cm.lock.Unlock()
 	_, ok := cm.userConns[clientMsg.UserId]
 	if ok {
 		delete(cm.userConns, clientMsg.UserId)
 	}
-	cm.lock.Unlock()
 }
 
 func SendMsg(toUserId string, message Message) {
-	conn, ok := clientManager.userConns[toUserId]
+	conn, ok := clientManager.getUserCon(toUserId)
 	if !ok {
 		return
 	}

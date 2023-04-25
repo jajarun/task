@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+// 包名
+package  serviceMicro;
+
+option go_package = "./;serviceMicro";
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  // Sends another greeting
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user's name.
+message HelloRequest {
+  string name = 1;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+}
+
+
+// 执行 protoc --go_out=. helloworld.proto 生成 helloworld.pb.go 文件
+// 执行 protoc --micro_out=. helloworld.proto  用micro插件生成 helloworld.pb.micro.go 文件
+
+//或者执行 protoc --go_out=. --go-grpc_out=. helloworld.proto

@@ -33,7 +33,7 @@ func AccRouteInit() {
 	http.HandleFunc("/ws", handleAccCon)
 
 	go handleMessage()
-	//go tasks.ProcessMsg()
+	go tasks.ProcessMsg()
 }
 
 func handleMessage() {

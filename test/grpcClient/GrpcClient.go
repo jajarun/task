@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// 连接到server端，此处禁用安全传输
-	conn, err := grpc.Dial("127.0.0.1:8972", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("10.1.3.105:56923", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}

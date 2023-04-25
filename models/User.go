@@ -16,8 +16,21 @@ type User struct {
 //	return nil
 //}
 
-func (u *User) isModelCache() bool {
+//func (u *User) AfterQuery(tx *gorm.DB) (err error) {
+//	fmt.Println(u)
+//	return nil
+//}
+
+//func (u *User) getPrimaryKey() string {
+//	return "ID"
+//}
+
+func (u *User) IsModelCache() bool {
 	return false
+}
+
+func (u *User) GetRevisionClue() string {
+	return "user_id"
 }
 
 func FindUserByMobile(mobile string) User {
@@ -25,8 +38,4 @@ func FindUserByMobile(mobile string) User {
 	db := GetInstanceDb()
 	db.Where("mobile = ?", mobile).First(&user)
 	return user
-}
-
-func (u *User) getRevisionClue() string {
-	return "user_id"
 }
